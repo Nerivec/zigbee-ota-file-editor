@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zigbee OTA File Editor</title>
+    <meta name="description"
+        content="Load, inspect, tweak header fields, preview metadata, and download the updated image — entirely in your browser.">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="main.js"></script>
+</head>
+
+<body>
+    <header class="hero">
+        <div class="head">
+            <img class="icon" src="icon.png" />
+            <div>
+                <h1>Zigbee OTA File Editor</h1>
+                <p class="lede">Load, inspect, tweak header fields, preview metadata, and download the updated
+                    image — entirely in your browser.</p>
+            </div>
+        </div>
+        <div class="actions">
+            <label class="file-picker">
+                <input id="file-input" type="file" accept="application/octet-stream,.zigbee,.ota,.bin">
+                <span>Select OTA file</span>
+            </label>
+            <button id="download-btn" type="button" disabled>Download modified file</button>
+            <a id="bmc-button" href="https://www.buymeacoffee.com/Nerivec" target="_blank" class="button">
+                <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee"
+                    class="image">
+            </a>
+        </div>
+    </header>
+
+    <div id="protection-warning" class="warning-banner hidden" role="status" aria-live="polite">
+        <div class="warning-icon" aria-hidden="true">!</div>
+        <div class="warning-text">
+            <p class="warning-title">Signature / integrity / encryption detected</p>
+            <p class="warning-body" id="protection-warning-body">Editing protected images may invalidate signatures or
+                encryption and could be rejected by the device.</p>
+        </div>
+    </div>
+
+    <main class="layout">
+        <section class="panel">
+            <div class="panel-header">
+                <h3>Editable header fields</h3>
+            </div>
+            <form id="header-form" class="grid" autocomplete="off">
+                <label>OTA upgrade file identifier
+                    <input id="otaUpgradeFileIdentifier" name="otaUpgradeFileIdentifier" type="text" readonly>
+                </label>
+                <label>OTA header version
+                    <input id="otaHeaderVersion" name="otaHeaderVersion" type="number" readonly>
+                </label>
+                <label>OTA header length
+                    <input id="otaHeaderLength" name="otaHeaderLength" type="number" readonly>
+                </label>
+                <label>OTA header field control
+                    <input id="otaHeaderFieldControl" name="otaHeaderFieldControl" type="number" readonly>
+                </label>
+                <label>Manufacturer code
+                    <input id="manufacturerCode" name="manufacturerCode" type="number" min="0" max="65535" step="1">
+                </label>
+                <label>Image type
+                    <input id="imageType" name="imageType" type="number" min="0" max="65535" step="1">
+                </label>
+                <div class="version-field">
+                    <div class="version-top" role="group" aria-label="File version format">
+                        <span class="label-title">File version</span>
+                        <div class="version-toggle">
+                            <label class="toggle"><input type="radio" name="fileVersionMode" value="number" checked>
+                                Number</label>
+                            <label class="toggle"><input type="radio" name="fileVersionMode" value="zigbee">
+                                App/Stack</label>
+                        </div>
+                    </div>
+                    <div id="fileVersionNumberRow" class="version-row">
+                        <input aria-label="File version (uint32)" id="fileVersion" name="fileVersion" type="number"
+                            min="0" max="4294967295" step="1">
+                    </div>
+                    <div id="fileVersionZigbeeRow" class="version-row hidden version-zigbee">
+                        <label>App release
+                            <input id="fileVersionAppRelease" name="fileVersionAppRelease" type="text"
+                                pattern="^[0-9A-Fa-f]\.[0-9A-Fa-f]$" placeholder="1.0" maxlength="3">
+                        </label>
+                        <label>App build
+                            <input id="fileVersionAppBuild" name="fileVersionAppBuild" type="number" min="0" max="255"
+                                step="1">
+                        </label>
+                        <label>Stack release
+                            <input id="fileVersionStackRelease" name="fileVersionStackRelease" type="text"
+                                pattern="^[0-9A-Fa-f]\.[0-9A-Fa-f]$" placeholder="2.0" maxlength="3">
+                        </label>
+                        <label>Stack build
+                            <input id="fileVersionStackBuild" name="fileVersionStackBuild" type="number" min="0"
+                                max="255" step="1">
+                        </label>
+                    </div>
+                    <div class="hint" id="fileVersionHint">app A.B build XX | stack C.D build YY</div>
+                </div>
+                <label>Zigbee stack version
+                    <input id="zigbeeStackVersion" name="zigbeeStackVersion" type="number" min="0" max="65535" step="1">
+                </label>
+                <label>OTA header string
+                    <input id="otaHeaderString" name="otaHeaderString" type="text" maxlength="32">
+                </label>
+                <label>Total image size
+                    <input id="totalImageSize" name="totalImageSize" type="number" min="56" max="4294967295" step="1">
+                </label>
+                <label>Security credential version (optional)
+                    <input id="securityCredentialVersion" name="securityCredentialVersion" type="number" min="0"
+                        max="255" step="1">
+                </label>
+                <label>Upgrade file destination (optional)
+                    <input id="upgradeFileDestination" name="upgradeFileDestination" type="text"
+                        placeholder="hex bytes e.g. 01 02 03" pattern="^([0-9a-fA-F]{2})([ ]?[0-9a-fA-F]{2}){0,7}$"
+                        maxlength="23">
+                </label>
+                <label>Minimum hardware version (optional)
+                    <input id="minimumHardwareVersion" name="minimumHardwareVersion" type="number" min="0" max="65535"
+                        step="1">
+                </label>
+                <label>Maximum hardware version (optional)
+                    <input id="maximumHardwareVersion" name="maximumHardwareVersion" type="number" min="0" max="65535"
+                        step="1">
+                </label>
+            </form>
+            <div class="form-actions">
+                <button id="reset-btn" type="button" disabled>Reset to parsed</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h3>Parsed metadata</h3>
+                <p>Read-only view of details extracted from the file.</p>
+            </div>
+            <div id="metadata" class="metadata" aria-live="polite">Load a file to view metadata.</div>
+            <div class="panel-header compact">
+                <h3>Index metadata (JSON)</h3>
+                <p>Auto-updates from the current input values.</p>
+            </div>
+            <textarea id="index-json" class="code" rows="10" readonly
+                placeholder="JSON output will appear here"></textarea>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <span id="status">Waiting for file.</span>
+    </footer>
+</body>
+
+</html>
