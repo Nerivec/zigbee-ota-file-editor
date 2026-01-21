@@ -108,7 +108,7 @@ const protectionWarning = getEl("protection-warning");
 const protectionWarningBody = getEl("protection-warning-body");
 
 /** @type {{fileName: string, parsed: ParsedImage | null}} */
-const state = {fileName: "ota.bin", parsed: null};
+const state = { fileName: "ota.bin", parsed: null };
 /** @type {number | null} */
 let indexRefreshHandle = null;
 
@@ -153,7 +153,7 @@ downloadBtn.addEventListener("click", async () => {
         const updatedHeader = collectHeaderFromForm();
         const normalized = normalizeHeader(updatedHeader, state.parsed.raw);
         const rebuilt = serializeImage(normalized, state.parsed.raw);
-        state.parsed = {...state.parsed, header: normalized, raw: rebuilt};
+        state.parsed = { ...state.parsed, header: normalized, raw: rebuilt };
 
         populateForm();
         renderMetadata();
@@ -399,12 +399,18 @@ function renderProtectionWarning(elements) {
  * @returns {ParsedImage}
  */
 function parseImage(buffer) {
-    const header = parseImageHeader(buffer);
-    const elements = parseElements(buffer, header);
-    const raw = buffer.slice(0, header.totalImageSize);
+    // find the actual start of OTA data (might have padding before/after)
+    const otaStartIndex = findSubarray(new Uint8Array(buffer), UPGRADE_FILE_IDENTIFIER);
+    assert(otaStartIndex !== -1, "Invalid OTA file");
+
+    // slice buffer from the OTA start if there's padding
+    const otaBuffer = otaStartIndex > 0 ? buffer.slice(otaStartIndex) : buffer;
+    const header = parseImageHeader(otaBuffer);
+    const elements = parseElements(otaBuffer, header);
+    const raw = otaBuffer.slice(0, header.totalImageSize);
     const stack = identifyImageZigbeeStack(elements);
 
-    return {header, elements, raw, stack};
+    return { header, elements, raw, stack };
 }
 
 /**
@@ -414,11 +420,9 @@ function parseImage(buffer) {
  */
 function parseImageHeader(buffer) {
     const view = new DataView(buffer);
-    assert(buffer.byteLength >= OTA_HEADER_MIN_LENGTH, "Buffer too small to contain header.");
+    assert(buffer.byteLength >= OTA_HEADER_MIN_LENGTH, "Buffer too small to contain header");
 
     const otaUpgradeFileIdentifier = new Uint8Array(buffer.slice(0, 4));
-    assert(equalsBytes(otaUpgradeFileIdentifier, UPGRADE_FILE_IDENTIFIER), "Invalid upgrade file identifier");
-
     const otaHeaderVersion = view.getUint16(4, true);
     const otaHeaderLength = view.getUint16(6, true);
     const otaHeaderFieldControl = view.getUint16(8, true);
@@ -517,12 +521,12 @@ function parseSubElement(bytes, position) {
         const tagMeta = bytes.slice(position + 6, position + 8);
         const data = bytes.slice(position + 8, position + 8 + length);
 
-        return [{tagID, length, tagMeta, data}, 8];
+        return [{ tagID, length, tagMeta, data }, 8];
     }
 
     const data = bytes.slice(position + 6, position + 6 + length);
 
-    return [{tagID, length, tagMeta: undefined, data}, 6];
+    return [{ tagID, length, tagMeta: undefined, data }, 6];
 }
 
 /**
@@ -640,7 +644,7 @@ function fileVersionToSegments(version) {
     const stackRelease = `${versionString[4]}.${versionString[5]}`;
     const stackBuild = Number.parseInt(versionString.slice(6), 16);
 
-    return {appRelease, appBuild, stackRelease, stackBuild};
+    return { appRelease, appBuild, stackRelease, stackBuild };
 }
 
 /**
@@ -825,7 +829,7 @@ function populateForm() {
         return;
     }
 
-    const {header} = state.parsed;
+    const { header } = state.parsed;
 
     getInputEl("otaUpgradeFileIdentifier").value = formatHex(header.otaUpgradeFileIdentifier);
     getInputEl("otaHeaderVersion").value = String(header.otaHeaderVersion);
@@ -857,7 +861,7 @@ function collectHeaderFromForm() {
         throw new Error("Invalid state, no parsed data found");
     }
 
-    const {header} = state.parsed;
+    const { header } = state.parsed;
     /** @type {(id: string) => HTMLInputElement} */
     const el = (id) => getEl(id);
     const toNumber = /** @param {string} value */ (value) => Number(value || 0);
@@ -904,7 +908,7 @@ function renderMetadata() {
         return;
     }
 
-    const {header, elements, stack} = state.parsed;
+    const { header, elements, stack } = state.parsed;
 
     let content = `Identifier, ${formatHex(header.otaUpgradeFileIdentifier)}
 Header version: ${header.otaHeaderVersion}
@@ -923,7 +927,7 @@ Max hardware version: ${header.maximumHardwareVersion ?? "—"}
 Identified stack: ${stack ?? "—"}
 Tags:`;
 
-    for (const {tagID, length} of elements) {
+    for (const { tagID, length } of elements) {
         content += `\n  - [${formatTagId(tagID)}] ${tagID >= 0xf000 ? "Manufacturer-specific" : (ZIGBEE_SPEC_TAGS[tagID] ?? "Unknown")} (length: ${length})`;
     }
 
@@ -936,7 +940,7 @@ Tags:`;
  * @param {string} fileName
  */
 function triggerDownload(buffer, fileName) {
-    const blob = new Blob([buffer], {type: "application/octet-stream"});
+    const blob = new Blob([buffer], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -992,24 +996,6 @@ function parseHexInput(value) {
  */
 function setStatus(message) {
     statusEl.textContent = message;
-}
-
-/**
- * Shallow equality check for two byte buffers.
- * @param {Uint8Array} a
- * @param {Uint8Array} b
- * @returns {boolean}
- */
-function equalsBytes(a, b) {
-    if (a.length !== b.length) {
-        return false;
-    }
-
-    for (let i = 0; i < a.length; i += 1) {
-        if (a[i] !== b[i]) return false;
-    }
-
-    return true;
 }
 
 /**
@@ -1135,4 +1121,4 @@ function bytesEqualsAt(haystack, needle, offset) {
 
 // Initialize placeholders.
 syncVersionUI(getVersionMode());
-setStatus("Waiting for file.");
+setStatus("Waiting for file...");
