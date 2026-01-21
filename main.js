@@ -139,8 +139,9 @@ fileInput.addEventListener("change", async (event) => {
         downloadBtn.disabled = false;
         resetBtn.disabled = false;
     } catch (error) {
+        resetState();
         console.error(error);
-        setStatus("Failed to read file. Check console for details.");
+        setStatus(`Failed to read file. ${error}`);
     }
 });
 
@@ -840,7 +841,6 @@ function populateForm() {
     getInputEl("fileVersion").value = String(header.fileVersion);
 
     setSegmentsFromVersion(header.fileVersion);
-    updateVersionHint(header.fileVersion);
     syncVersionUI(getVersionMode());
 
     getInputEl("zigbeeStackVersion").value = String(header.zigbeeStackVersion);
@@ -1117,6 +1117,50 @@ function bytesEqualsAt(haystack, needle, offset) {
     }
 
     return true;
+}
+
+/**
+ * Reset state
+ */
+function resetState() {
+    if (indexRefreshHandle) {
+        clearTimeout(indexRefreshHandle);
+    }
+
+    state.fileName = "ota.bin";
+    state.parsed = null;
+
+    indexJson.value = "";
+    metadataBox.textContent = "";
+
+    getInputEl("otaUpgradeFileIdentifier").value = "";
+    getInputEl("otaHeaderVersion").value = "";
+    getInputEl("otaHeaderLength").value = "";
+    getInputEl("otaHeaderFieldControl").value = "";
+    getInputEl("manufacturerCode").value = "";
+    getInputEl("imageType").value = "";
+    getInputEl("fileVersion").value = "";
+
+    fileVersionHint.textContent = "";
+    fileVersionAppRelease.value = "";
+    fileVersionAppBuild.value = "";
+    fileVersionStackRelease.value = "";
+    fileVersionStackBuild.value = "";
+
+    setSegmentsFromVersion(0);
+    syncVersionUI(getVersionMode());
+
+    getInputEl("zigbeeStackVersion").value = "";
+    getInputEl("otaHeaderString").value = "";
+    getInputEl("totalImageSize").value = "";
+    getInputEl("securityCredentialVersion").value = "";
+    getInputEl("upgradeFileDestination").value = "";
+    getInputEl("minimumHardwareVersion").value = "";
+    getInputEl("maximumHardwareVersion").value = "";
+
+    protectionWarningBody.textContent = "";
+
+    protectionWarning.classList.add("hidden");
 }
 
 // Initialize placeholders.
